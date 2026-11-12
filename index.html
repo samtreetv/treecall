@@ -6,41 +6,62 @@
 <title>TreeCall</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
-  :root { --blue:#3aa8ff; --glow:0 0 24px rgba(58,168,255,.55); --bg:#05070c; --panel:#0c111b; --line:#1b2534; --txt:#e8f1ff; --dim:#7f8da3; }
+  :root { --blue:#2f9bff; --deep:#0a4f9e; --bg:#fff; --soft:#f2f6fb; --line:#e3eaf3; --ink:#0d1b2e; }
   * { box-sizing:border-box; }
-  html,body { margin:0; height:100%; background:var(--bg); color:var(--txt); font:15px/1.4 -apple-system,system-ui,Helvetica,Arial,sans-serif; }
-  button,select,input { font:inherit; color:var(--txt); background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:9px 14px; }
-  button { cursor:pointer; }
-  button:hover { border-color:var(--blue); box-shadow:var(--glow); }
-  button.on { background:var(--blue); color:#001; border-color:var(--blue); }
-  .orb { width:34px; height:34px; border-radius:50%; background:radial-gradient(circle at 40% 35%,#9fd6ff,var(--blue) 45%,#0a3d73 80%); box-shadow:var(--glow); position:relative; flex:none; }
-  .orb::before,.orb::after { content:""; position:absolute; background:#fff; box-shadow:0 0 8px #fff; left:50%; top:50%; transform:translate(-50%,-50%); border-radius:2px; }
-  .orb::before { width:16px; height:3px; } .orb::after { width:3px; height:16px; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:15px/1.4 -apple-system,system-ui,Helvetica,Arial,sans-serif; }
+
+  /* ---- orbs ---- */
+  .orb { width:48px; height:48px; border-radius:50%; border:0; padding:0; cursor:pointer; flex:none; position:relative;
+         background:radial-gradient(circle at 38% 30%, #bfe3ff 0%, var(--blue) 42%, var(--deep) 88%);
+         box-shadow:0 6px 18px rgba(47,155,255,.35), inset 0 -3px 8px rgba(0,30,80,.35), inset 0 2px 4px rgba(255,255,255,.6);
+         display:grid; place-items:center; transition:transform .15s, box-shadow .2s, opacity .2s, filter .2s; }
+  .orb:hover { transform:scale(1.08); box-shadow:0 8px 26px rgba(47,155,255,.55), inset 0 -3px 8px rgba(0,30,80,.35), inset 0 2px 4px rgba(255,255,255,.6); }
+  .orb:active { transform:scale(.95); }
+  .orb svg { width:22px; height:22px; stroke:#fff; stroke-width:2.2; fill:none; stroke-linecap:round; stroke-linejoin:round; filter:drop-shadow(0 0 3px rgba(255,255,255,.8)); }
+  .orb.on { background:radial-gradient(circle at 38% 30%, #fff 0%, #eef6ff 55%, #cfe6ff 100%); box-shadow:0 0 0 2px var(--blue), 0 6px 18px rgba(47,155,255,.3); }
+  .orb.on svg { stroke:var(--blue); filter:none; }
+  .orb.red { background:radial-gradient(circle at 38% 30%, #ffc9c9 0%, #ff4d5e 42%, #9e0a1c 88%); box-shadow:0 6px 18px rgba(255,77,94,.35), inset 0 -3px 8px rgba(80,0,10,.35), inset 0 2px 4px rgba(255,255,255,.6); }
+  .orb.ok { background:radial-gradient(circle at 38% 30%, #d4ffe0 0%, #2fd47a 42%, #0a7a3e 88%); }
+  .orb:disabled { opacity:.25; cursor:default; transform:none; }
+  .orb.small { width:38px; height:38px; } .orb.small svg { width:18px; height:18px; }
+  .orb.pulse { animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow:0 0 0 10px rgba(47,155,255,.18), 0 6px 18px rgba(47,155,255,.4); } }
+  .hide { display:none !important; }
+
+  /* logo orb with plus */
+  .logo { width:34px; height:34px; border-radius:50%; position:relative; flex:none;
+          background:radial-gradient(circle at 38% 30%, #bfe3ff, var(--blue) 45%, var(--deep) 85%); box-shadow:0 0 18px rgba(47,155,255,.5); }
+  .logo::before,.logo::after { content:""; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); background:#fff; border-radius:2px; box-shadow:0 0 8px #fff; }
+  .logo::before { width:15px; height:3px; } .logo::after { width:3px; height:15px; }
+  .dot { width:12px; height:12px; border-radius:50%; background:#c9d3df; box-shadow:inset 0 -1px 2px rgba(0,0,0,.2); transition:background .3s; }
+  .dot.wait { background:#ffb02e; animation:pulse2 1.2s infinite; } .dot.live { background:#2fd47a; } .dot.err { background:#ff4d5e; }
+  @keyframes pulse2 { 50% { opacity:.4; } }
+
+  /* ---- layout (same skeleton as v1) ---- */
   .app { display:grid; grid-template-rows:auto 1fr auto; height:100%; }
-  header { display:flex; align-items:center; gap:12px; padding:12px 16px; flex-wrap:wrap; }
-  header b { font-size:18px; letter-spacing:.5px; }
-  #status { color:var(--dim); font-size:13px; }
-  main { display:grid; grid-template-columns:1fr 300px; gap:12px; padding:0 16px; min-height:0; }
-  .stage { position:relative; background:#000; border-radius:18px; overflow:hidden; border:1px solid var(--line); min-height:240px; }
-  #remote { width:100%; height:100%; object-fit:contain; background:#000; }
-  #local { position:absolute; right:12px; bottom:12px; width:24%; max-width:220px; border-radius:12px; border:1px solid var(--line); background:#111; }
-  .empty { position:absolute; inset:0; display:grid; place-items:center; color:var(--dim); text-align:center; padding:20px; }
-  .side { display:flex; flex-direction:column; gap:10px; min-height:0; }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:12px; display:flex; flex-direction:column; gap:8px; }
-  .card label { font-size:12px; color:var(--dim); }
-  .card select { border-radius:10px; width:100%; }
+  header { display:flex; align-items:center; gap:12px; padding:14px 18px; }
+  main { display:grid; grid-template-columns:1fr 300px; gap:14px; padding:0 18px; min-height:0; }
+  .stage { position:relative; background:var(--soft); border-radius:22px; overflow:hidden; border:1px solid var(--line); min-height:240px; }
+  #remote { width:100%; height:100%; object-fit:contain; background:transparent; }
+  #local { position:absolute; right:14px; bottom:14px; width:24%; max-width:220px; border-radius:16px; background:#dfe7f1; box-shadow:0 6px 20px rgba(13,27,46,.18); }
+  .empty { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; }
+  .empty .logo { width:120px; height:120px; opacity:.16; } .empty .logo::before { width:52px; height:9px; } .empty .logo::after { width:9px; height:52px; }
+  .side { display:flex; flex-direction:column; gap:12px; min-height:0; }
+  .card { background:var(--soft); border:1px solid var(--line); border-radius:22px; padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .row { display:flex; gap:10px; align-items:center; }
   .chat { flex:1; min-height:160px; }
   #msgs { flex:1; overflow:auto; display:flex; flex-direction:column; gap:6px; min-height:80px; }
-  .m { padding:6px 10px; border-radius:12px; background:#131b28; max-width:90%; word-wrap:break-word; }
-  .m.me { align-self:flex-end; background:#0f3a63; }
-  .chatrow { display:flex; gap:6px; } .chatrow input { flex:1; border-radius:12px; min-width:0; }
-  footer { display:flex; gap:8px; justify-content:center; padding:12px; flex-wrap:wrap; }
-  #linkbox { display:none; gap:6px; align-items:center; }
-  #linkbox input { width:260px; border-radius:10px; font-size:12px; }
-  /* Clean view for OBS window capture: only your friend, full window */
+  .m { padding:7px 12px; border-radius:16px; background:#fff; border:1px solid var(--line); max-width:90%; word-wrap:break-word; }
+  .m.me { align-self:flex-end; background:var(--blue); color:#fff; border-color:var(--blue); }
+  .m.sys { align-self:center; background:transparent; border:0; opacity:.5; }
+  #txt { flex:1; min-width:0; border:1px solid var(--line); background:#fff; border-radius:999px; padding:10px 14px; font:inherit; color:var(--ink); outline:none; }
+  #txt:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(47,155,255,.15); }
+  footer { display:flex; gap:12px; justify-content:center; padding:16px; flex-wrap:wrap; }
+
+  /* clean view for OBS: only your friend, white */
   body.clean header, body.clean .side, body.clean footer, body.clean #local, body.clean .empty { display:none !important; }
   body.clean main { grid-template-columns:1fr; padding:0; }
-  body.clean .stage { border:0; border-radius:0; }
+  body.clean .stage { border:0; border-radius:0; background:#fff; }
   body.clean .app { grid-template-rows:0 1fr 0; }
   @media (max-width:760px) { main { grid-template-columns:1fr; } .stage { min-height:50vh; } }
 </style>
@@ -48,102 +69,86 @@
 <body>
 <div class="app">
   <header>
-    <div class="orb"></div><b>TreeCall</b>
-    <span id="status">1️⃣ Turn on camera</span>
-    <span id="linkbox"><input id="link" readonly><button id="copy">📋 Copy link</button></span>
+    <div class="logo"></div>
+    <div class="dot" id="dot"></div>
   </header>
   <main>
     <div class="stage">
       <video id="remote" autoplay playsinline></video>
-      <div class="empty" id="empty">🔵 Your friend shows up here</div>
+      <div class="empty" id="empty"><div class="logo"></div></div>
       <video id="local" autoplay playsinline muted></video>
     </div>
     <div class="side">
       <div class="card">
-        <label>📷 Camera (pick "OBS Virtual Camera" to send your stream feed)</label>
-        <select id="camSel"><option>—</option></select>
-        <label>🎙️ Mic</label>
-        <select id="micSel"><option>—</option></select>
+        <div class="row">
+          <button class="orb small" id="camCycle" disabled aria-label="Next camera"><svg viewBox="0 0 24 24"><path d="M3 8h11v9H3z"/><path d="M14 11l5-3v9l-5-3"/><path d="M8 4h6M12 2l2 2-2 2"/></svg></button>
+          <button class="orb small" id="micCycle" disabled aria-label="Next mic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="10" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/><path d="M17 3h4M19 1l2 2-2 2"/></svg></button>
+        </div>
       </div>
       <div class="card chat">
         <div id="msgs"></div>
-        <div class="chatrow"><input id="txt" placeholder="💬 type…" maxlength="500"><button id="send">➤</button></div>
+        <div class="row"><input id="txt" maxlength="500" aria-label="Message"><button class="orb small" id="send" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
       </div>
     </div>
   </main>
   <footer>
-    <button id="startCam">📷 Turn on camera</button>
-    <button id="host" disabled>🔵 Start room</button>
-    <button id="mute" disabled>🎙️ Mute</button>
-    <button id="vidOff" disabled>📷 Hide video</button>
-    <button id="clean">🎬 Clean view</button>
-    <button id="hang" disabled>✖ Hang up</button>
+    <button class="orb pulse" id="startCam" aria-label="Turn on camera"><svg viewBox="0 0 24 24"><path d="M3 7h12v10H3z"/><path d="M15 10.5l6-3.5v10l-6-3.5"/></svg></button>
+    <button class="orb" id="host" disabled aria-label="Start room"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button class="orb hide" id="copy" aria-label="Copy invite link"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></button>
+    <button class="orb" id="mute" disabled aria-label="Mute"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+    <button class="orb" id="vidOff" disabled aria-label="Hide my video"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    <button class="orb" id="clean" aria-label="Clean view"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="orb red" id="hang" disabled aria-label="Hang up"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </footer>
 </div>
 <script>
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const joinId = params.get('room');
-let peer = null, call = null, conn = null, localStream = null;
+let peer = null, call = null, conn = null, localStream = null, inviteUrl = '';
 
-const say = t => $('status').textContent = t;
+// status lives in one small dot; words only on hover
+function say(t, state) { const d = $('dot'); d.title = t; d.className = 'dot' + (state ? ' ' + state : ''); }
 
 // ---------- media ----------
-async function getMedia(camId, micId) {
-  const c = { video: camId ? { deviceId:{ exact:camId } } : true,
-              audio: micId ? { deviceId:{ exact:micId } } : true };
-  return navigator.mediaDevices.getUserMedia(c);
-}
-async function fillDevices() {
-  const devs = await navigator.mediaDevices.enumerateDevices();
-  const fill = (sel, kind, track) => {
-    const cur = track && track.getSettings().deviceId;
-    sel.innerHTML = '';
-    devs.filter(d => d.kind === kind).forEach((d, i) => {
-      const o = document.createElement('option');
-      o.value = d.deviceId; o.textContent = d.label || (kind + ' ' + (i+1));
-      if (d.deviceId === cur) o.selected = true;
-      sel.appendChild(o);
-    });
-  };
-  fill($('camSel'), 'videoinput', localStream && localStream.getVideoTracks()[0]);
-  fill($('micSel'), 'audioinput', localStream && localStream.getAudioTracks()[0]);
-}
 async function startCam() {
   try {
-    localStream = await getMedia();
+    localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
     $('local').srcObject = localStream;
-    await fillDevices();
-    $('startCam').style.display = 'none';
-    ['mute','vidOff'].forEach(b => $(b).disabled = false);
-    if (joinId) { say('🔗 Joining room…'); joinRoom(); }
-    else { $('host').disabled = false; say('2️⃣ Start a room'); }
-  } catch (e) { say('⚠️ Camera/mic blocked: ' + e.name); }
+    $('startCam').classList.add('hide');
+    ['mute','vidOff','camCycle','micCycle'].forEach(b => $(b).disabled = false);
+    if (joinId) { say('Joining…', 'wait'); joinRoom(); }
+    else { $('host').disabled = false; $('host').classList.add('pulse'); say('Start a room'); }
+  } catch (e) { say('Camera/mic blocked: ' + e.name, 'err'); }
 }
-// swap camera or mic mid-call without reconnecting
-async function swap(kind) {
-  const camId = $('camSel').value, micId = $('micSel').value;
+// tap an orb to step to the next camera / mic (e.g. OBS Virtual Camera)
+async function cycle(kind) {
+  const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === (kind === 'video' ? 'videoinput' : 'audioinput'));
+  if (devs.length < 2) return;
+  const cur = (kind === 'video' ? localStream.getVideoTracks() : localStream.getAudioTracks())[0];
+  const curId = cur && cur.getSettings().deviceId;
+  const next = devs[(devs.findIndex(d => d.deviceId === curId) + 1) % devs.length];
   try {
     const s = await navigator.mediaDevices.getUserMedia(kind === 'video'
-      ? { video:{ deviceId:{ exact:camId } } } : { audio:{ deviceId:{ exact:micId } } });
+      ? { video:{ deviceId:{ exact:next.deviceId } } } : { audio:{ deviceId:{ exact:next.deviceId } } });
     const nt = s.getTracks()[0];
-    const old = kind === 'video' ? localStream.getVideoTracks()[0] : localStream.getAudioTracks()[0];
-    if (old) { nt.enabled = old.enabled; localStream.removeTrack(old); old.stop(); }
+    if (cur) { nt.enabled = cur.enabled; localStream.removeTrack(cur); cur.stop(); }
     localStream.addTrack(nt);
     $('local').srcObject = localStream;
     if (call && call.peerConnection) {
       const sender = call.peerConnection.getSenders().find(x => x.track && x.track.kind === kind);
       if (sender) await sender.replaceTrack(nt);
     }
-  } catch (e) { say('⚠️ Could not switch: ' + e.name); }
+    $(kind === 'video' ? 'camCycle' : 'micCycle').title = next.label;
+  } catch (e) { say('Could not switch: ' + e.name, 'err'); }
 }
-$('camSel').onchange = () => localStream && swap('video');
-$('micSel').onchange = () => localStream && swap('audio');
+$('camCycle').onclick = () => cycle('video');
+$('micCycle').onclick = () => cycle('audio');
 
 // ---------- call ----------
 function wireCall(c) {
   call = c;
-  c.on('stream', s => { $('remote').srcObject = s; $('empty').style.display = 'none'; say('🟢 Connected'); $('hang').disabled = false; });
+  c.on('stream', s => { $('remote').srcObject = s; $('empty').classList.add('hide'); say('Connected', 'live'); $('hang').disabled = false; $('copy').classList.remove('pulse'); });
   c.on('close', ended);
   c.on('error', ended);
 }
@@ -153,27 +158,26 @@ function wireChat(c) {
   c.on('close', () => { conn = null; });
 }
 function ended() {
-  $('remote').srcObject = null; $('empty').style.display = 'grid';
+  $('remote').srcObject = null; $('empty').classList.remove('hide');
   call = null; $('hang').disabled = true;
-  say(joinId ? '⚪ Call ended — reload to rejoin' : '⚪ Call ended — waiting for friend');
+  say(joinId ? 'Call ended — reload to rejoin' : 'Call ended — waiting for friend', joinId ? '' : 'wait');
 }
 function makeId() {
   const a = 'abcdefghjkmnpqrstuvwxyz23456789'; let s = 'treecall-';
-  const r = crypto.getRandomValues(new Uint8Array(10));
-  r.forEach(n => s += a[n % a.length]); return s;
+  crypto.getRandomValues(new Uint8Array(10)).forEach(n => s += a[n % a.length]); return s;
 }
 function hostRoom() {
   const id = makeId();
   peer = new Peer(id);
-  $('host').disabled = true; say('⏳ Opening room…');
+  $('host').disabled = true; $('host').classList.remove('pulse'); say('Opening room…', 'wait');
   peer.on('open', () => {
-    const url = location.origin + location.pathname + '?room=' + id;
-    $('link').value = url; $('linkbox').style.display = 'flex';
-    say('3️⃣ Send this link to your friend 👉');
+    inviteUrl = location.origin + location.pathname + '?room=' + id;
+    $('copy').classList.remove('hide'); $('copy').classList.add('pulse');
+    say('Copy the link and send it to your friend', 'wait');
   });
   peer.on('call', c => { if (call) call.close(); c.answer(localStream); wireCall(c); });
   peer.on('connection', wireChat);
-  peer.on('error', e => say('⚠️ ' + e.type));
+  peer.on('error', e => say(e.type, 'err'));
 }
 function joinRoom() {
   peer = new Peer();
@@ -182,47 +186,48 @@ function joinRoom() {
     wireChat(peer.connect(joinId, { reliable:true }));
   });
   peer.on('connection', wireChat);
-  peer.on('error', e => say(e.type === 'peer-unavailable'
-    ? '⚠️ Room not open — ask your friend to start it, then reload' : '⚠️ ' + e.type));
+  peer.on('error', e => say(e.type === 'peer-unavailable' ? 'Room not open — reload once your friend starts it' : e.type, 'err'));
 }
 
 // ---------- chat ----------
 function addMsg(t, me) {
   const d = document.createElement('div');
-  d.className = 'm' + (me ? ' me' : ''); d.textContent = t;
+  d.className = 'm' + (me === true ? ' me' : me === 'sys' ? ' sys' : ''); d.textContent = t;
   $('msgs').appendChild(d); $('msgs').scrollTop = 1e9;
 }
 function sendMsg() {
   const t = $('txt').value.trim(); if (!t) return;
-  addMsg(t, true); $('txt').value = '';
-  if (conn && conn.open) conn.send(t); else addMsg('(not connected yet)', false);
+  $('txt').value = '';
+  if (conn && conn.open) { conn.send(t); addMsg(t, true); }
+  else { $('txt').value = t; $('send').classList.add('red'); setTimeout(() => $('send').classList.remove('red'), 500); }
 }
 $('send').onclick = sendMsg;
 $('txt').onkeydown = e => { if (e.key === 'Enter') sendMsg(); };
 
-// ---------- buttons ----------
+// ---------- orbs ----------
 $('startCam').onclick = startCam;
 $('host').onclick = hostRoom;
 $('copy').onclick = async () => {
-  try { await navigator.clipboard.writeText($('link').value); $('copy').textContent = '✅ Copied'; }
-  catch { $('link').select(); }
+  try { await navigator.clipboard.writeText(inviteUrl); }
+  catch { window.prompt && prompt('Copy this link', inviteUrl); }
+  $('copy').classList.add('ok'); setTimeout(() => $('copy').classList.remove('ok'), 900);
 };
 $('mute').onclick = () => {
   const t = localStream.getAudioTracks()[0]; if (!t) return;
   t.enabled = !t.enabled; $('mute').classList.toggle('on', !t.enabled);
-  $('mute').textContent = t.enabled ? '🎙️ Mute' : '🔇 Muted';
 };
 $('vidOff').onclick = () => {
   const t = localStream.getVideoTracks()[0]; if (!t) return;
   t.enabled = !t.enabled; $('vidOff').classList.toggle('on', !t.enabled);
-  $('vidOff').textContent = t.enabled ? '📷 Hide video' : '🙈 Video hidden';
 };
 $('hang').onclick = () => { if (call) call.close(); ended(); };
 $('clean').onclick = () => document.body.classList.add('clean');
 document.addEventListener('keydown', e => { if (e.key === 'Escape') document.body.classList.remove('clean'); });
 $('remote').ondblclick = () => document.body.classList.toggle('clean');
 
-if (joinId) { say('👋 You were invited — turn on camera to join'); $('startCam').textContent = '📷 Turn on camera & join'; }
-if (!window.Peer) say('⚠️ Could not load call library — check internet');
+if (joinId) say('You were invited — tap the camera orb to join');
+else say('Tap the camera orb');
+if (!window.Peer) say('Could not load call library — check internet', 'err');
 </script>
 </body>
+</html>
