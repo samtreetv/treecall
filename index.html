@@ -97,6 +97,7 @@
     <button class="orb hide" id="copy" aria-label="Copy invite link"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></button>
     <button class="orb" id="mute" disabled aria-label="Mute"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
     <button class="orb" id="vidOff" disabled aria-label="Hide my video"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    <button class="orb" id="share" disabled aria-label="Share my screen"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M12 13V7M9 10l3-3 3 3"/></svg></button>
     <button class="orb" id="clean" aria-label="Clean view"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <button class="orb red" id="hang" disabled aria-label="Hang up"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </footer>
@@ -116,7 +117,7 @@ async function startCam() {
     localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
     $('local').srcObject = localStream;
     $('startCam').classList.add('hide');
-    ['mute','vidOff','camCycle','micCycle'].forEach(b => $(b).disabled = false);
+    ['mute','vidOff','camCycle','micCycle','share'].forEach(b => $(b).disabled = false);
     if (joinId) { say('Joining…', 'wait'); joinRoom(); }
     else { $('host').disabled = false; $('host').classList.add('pulse'); say('Start a room'); }
   } catch (e) { say('Camera/mic blocked: ' + e.name, 'err'); }
@@ -142,6 +143,38 @@ async function cycle(kind) {
     $(kind === 'video' ? 'camCycle' : 'micCycle').title = next.label;
   } catch (e) { say('Could not switch: ' + e.name, 'err'); }
 }
+// ---------- screen share: swaps your camera for your whole screen, then back ----------
+let camTrack = null, screenTrack = null;
+async function putVideo(t) {
+  const old = localStream.getVideoTracks()[0];
+  if (old) localStream.removeTrack(old);
+  localStream.addTrack(t);
+  $('local').srcObject = localStream;
+  if (call && call.peerConnection) {
+    const sender = call.peerConnection.getSenders().find(x => x.track && x.track.kind === 'video')
+                || call.peerConnection.getSenders().find(x => !x.track);
+    if (sender) await sender.replaceTrack(t);
+  }
+}
+async function startShare() {
+  try {
+    const s = await navigator.mediaDevices.getDisplayMedia({ video:{ frameRate:30 }, audio:false });
+    screenTrack = s.getVideoTracks()[0];
+    camTrack = localStream.getVideoTracks()[0];
+    screenTrack.contentHint = 'detail';            // keep text sharp
+    screenTrack.onended = stopShare;                // browser's own "Stop sharing" bar
+    await putVideo(screenTrack);
+    $('share').classList.add('on'); $('camCycle').disabled = true;
+  } catch (e) { if (e.name !== 'NotAllowedError') say('Could not share: ' + e.name, 'err'); }
+}
+async function stopShare() {
+  if (!screenTrack) return;
+  const st = screenTrack; screenTrack = null; st.onended = null; st.stop();
+  if (camTrack) await putVideo(camTrack);
+  $('share').classList.remove('on'); $('camCycle').disabled = false;
+}
+$('share').onclick = () => screenTrack ? stopShare() : startShare();
+
 $('camCycle').onclick = () => cycle('video');
 $('micCycle').onclick = () => cycle('audio');
 
